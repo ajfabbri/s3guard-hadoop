@@ -29,44 +29,24 @@ import org.apache.hadoop.fs.FileStatus;
  */
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
-class PathMetadata {
+class PathMetadata<T extends FileStatus> {
 
-  private final FileStatus fileStatus;
+  private final T fileStatus;
 
   /**
    * Creates a new {@code PathMetadata} containing given {@code FileStatus}.
    *
    * @param fileStatus file status
    */
-  public PathMetadata(FileStatus fileStatus) {
-    Preconditions.checkNotNull(fileStatus, "fileStatus must be non-null");
+  public PathMetadata(T fileStatus) {
+    Preconditions.checkNotNull(fileStatus);
     this.fileStatus = fileStatus;
   }
 
   /**
    * @return {@code FileStatus} contained in this {@code PathMetadata}.
    */
-  public final FileStatus getFileStatus() {
+  public final T getFileStatus() {
     return fileStatus;
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (!(o instanceof PathMetadata)) {
-      return false;
-    }
-    return this.fileStatus.equals(((PathMetadata)o).fileStatus);
-  }
-
-  @Override
-  public int hashCode() {
-    return fileStatus.hashCode();
-  }
-
-  @Override
-  public String toString() {
-    return "PathMetadata{" +
-        "fileStatus=" + fileStatus +
-        '}';
   }
 }

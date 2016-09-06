@@ -22,6 +22,7 @@ import java.io.Closeable;
 import java.io.IOException;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
@@ -33,7 +34,7 @@ import org.apache.hadoop.fs.Path;
  */
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
-public interface MetadataStore extends Closeable {
+public abstract class MetadataStore<T extends FileStatus> implements Closeable {
 
   /**
    * Performs one-time initialization of the metadata store.
@@ -41,7 +42,7 @@ public interface MetadataStore extends Closeable {
    * @param conf {@code Configuration}
    * @throws IOException if there is an error
    */
-  void initialize(Configuration conf) throws IOException;
+  public abstract void initialize(Configuration conf) throws IOException;
 
   /**
    * Deletes exactly one path.
@@ -49,7 +50,7 @@ public interface MetadataStore extends Closeable {
    * @param path the path to delete
    * @throws IOException if there is an error
    */
-  void delete(Path path) throws IOException;
+  public abstract void delete(Path path) throws IOException;
 
   /**
    * Deletes the entire sub-tree rooted at the given path.
@@ -61,7 +62,7 @@ public interface MetadataStore extends Closeable {
    * @param path the root of the sub-tree to delete
    * @throws IOException if there is an error
    */
-  void deleteSubtree(Path path) throws IOException;
+  public abstract void deleteSubtree(Path path) throws IOException;
 
   /**
    * Gets metadata for a path.
@@ -70,18 +71,18 @@ public interface MetadataStore extends Closeable {
    * @return metadata for {@code path}, {@code null} if not found
    * @throws IOException if there is an error
    */
-  PathMetadata get(Path path) throws IOException;
+  public abstract PathMetadata<T> get(Path path) throws IOException;
 
   /**
    * Lists metadata for all direct children of a path.
    *
    * @param path the path to list
-   * @return metadata for all direct children of {@code path} which are being
-   *     tracked by the MetadataStore, or {@code null} if the path was not found
-   *     in the MetadataStore.
+   * @return metadata for all direct children of {@code path}, not {@code null},
+   *     but possibly empty
    * @throws IOException if there is an error
    */
-  DirListingMetadata listChildren(Path path) throws IOException;
+  public abstract DirListingMetadata<T> listChildren(Path path)
+      throws IOException;
 
   /**
    * Moves metadata from {@code src} to {@code dst}, including all descendants
@@ -91,7 +92,7 @@ public interface MetadataStore extends Closeable {
    * @param dst the destination path
    * @throws IOException if there is an error
    */
-  void move(Path src, Path dst) throws IOException;
+  public abstract void move(Path src, Path dst) throws IOException;
 
   /**
    * Saves metadata for exactly one path.  For a deeply nested path, this method
@@ -104,7 +105,7 @@ public interface MetadataStore extends Closeable {
    * @param meta the metadata to save
    * @throws IOException if there is an error
    */
-  void put(PathMetadata meta) throws IOException;
+  public abstract void put(PathMetadata<T> meta) throws IOException;
 
   /**
    * Save directory listing metadata. Callers may save a partial directory
@@ -112,7 +113,7 @@ public interface MetadataStore extends Closeable {
    * of the directory listing.  {@code MetadataStore} implementations may
    * subsequently keep track of all modifications to the directory contents at
    * this path, and return authoritative results from subsequent calls to
-   * {@link #listChildren(Path)}. See {@link DirListingMetadata}.
+   * {@link #listChildren(Path)}. See {@link DirListingMetadata()}.
    *
    * Any authoritative results returned are only authoritative for the scope
    * of the {@code MetadataStore}:  A per-process {@code MetadataStore}, for
@@ -121,7 +122,7 @@ public interface MetadataStore extends Closeable {
    * another process.
    *
    * @param meta Directory listing metadata.
-   * @throws IOException if there is an error
+   * @throws IOException
    */
-  void put(DirListingMetadata meta) throws IOException;
+  public abstract void put(DirListingMetadata<T> meta) throws IOException;
 }

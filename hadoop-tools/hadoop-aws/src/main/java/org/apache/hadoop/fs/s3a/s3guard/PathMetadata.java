@@ -22,6 +22,7 @@ import com.google.common.base.Preconditions;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.Path;
 
 /**
  * {@code PathMetadata} models path metadata stored in the
@@ -29,16 +30,17 @@ import org.apache.hadoop.fs.FileStatus;
  */
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
-class PathMetadata<T extends FileStatus> {
+class PathMetadata {
 
-  private final T fileStatus;
+  protected final FileStatus fileStatus;
+  protected boolean isDeleted = false;
 
   /**
    * Creates a new {@code PathMetadata} containing given {@code FileStatus}.
    *
    * @param fileStatus file status
    */
-  public PathMetadata(T fileStatus) {
+  public PathMetadata(FileStatus fileStatus) {
     Preconditions.checkNotNull(fileStatus);
     this.fileStatus = fileStatus;
   }
@@ -46,7 +48,22 @@ class PathMetadata<T extends FileStatus> {
   /**
    * @return {@code FileStatus} contained in this {@code PathMetadata}.
    */
-  public final T getFileStatus() {
+  public final FileStatus getFileStatus() {
     return fileStatus;
+  }
+
+  /**
+   * @return true if this path is marked as deleted.
+   */
+  public boolean isDeleted() {
+    return isDeleted;
+  }
+
+  /**
+   * Mark this path as deleted or not.
+   * @param isDeleted
+   */
+  public void setIsDeleted(boolean isDeleted) {
+    this.isDeleted = isDeleted;
   }
 }

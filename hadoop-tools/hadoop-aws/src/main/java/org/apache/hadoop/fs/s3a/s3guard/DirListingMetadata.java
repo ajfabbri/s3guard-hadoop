@@ -24,6 +24,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -33,14 +34,17 @@ import java.util.Map;
  */
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
-public class DirListingMetadata <T extends FileStatus> {
+public class DirListingMetadata {
 
   private final Path path;
 
   /** Using a map for fast find / remove with large directories. */
-  private Map<Path, T> listMap = new HashMap<>();
+  private Map<Path, PathMetadata> listMap = new HashMap<>();
 
   private boolean isAuthoritative;
+
+  public static final Collection<FileStatus> EMPTY_DIR =
+      Collections.EMPTY_LIST;
 
   /**
    * Create a directory listing metadata container.
@@ -51,16 +55,17 @@ public class DirListingMetadata <T extends FileStatus> {
    *     that this may be cached as the full and authoritative
    *     listing of all files in the directory.
    */
-  public DirListingMetadata(Path path, Collection<T> listing,
+  public DirListingMetadata(Path path, Collection<FileStatus> listing,
       boolean isAuthoritative) {
     this.path = path;
     if (listing != null) {
-      for (T entry : listing) {
-        listMap.put(entry.getPath(), entry);
+      for (FileStatus entry : listing) {
+        listMap.put(entry.getPath(), new PathMetadata(entry));
       }
     }
     this.isAuthoritative  = isAuthoritative;
   }
+
 
   /**
    * @return {@code Path} of the directory that contains this listing.
@@ -88,8 +93,12 @@ public class DirListingMetadata <T extends FileStatus> {
    * @param path of entry to look for
    * @return entry, or null if it is not present or not being tracked.
    */
-  public T get(Path path) {
+  public PathMetadata get(Path path) {
     return listMap.get(path);
+  }
+
+  public Collection<PathMetadata> getAll() {
+    return Collections.unmodifiableCollection(listMap.values());
   }
 
   /**
@@ -97,10 +106,20 @@ public class DirListingMetadata <T extends FileStatus> {
    * contains a {@code FileStatus} with the same path, it will be replaced.
    * @param fileStatus File entry to add to this directory listing.
    */
-  public void put(T fileStatus) {
+  public void put(FileStatus fileStatus) {
     // TODO assert that fileStatus is a proper child of path.
     // TODO unit test for this class?
-    listMap.put(fileStatus.getPath(), fileStatus);
+    listMap.put(fileStatus.getPath(), new PathMetadata(fileStatus));
+  }
+
+  /**
+   * Remove a file entry from the directory listing.
+   */
+  public void remove(Path path) {
+    if (path != null && listMap.containsKey(path)) {
+      // TODO instead of removing entry, mark it deleted.
+      listMap.remove(path);
+    }
   }
 
   @Override

@@ -20,9 +20,9 @@ package org.apache.hadoop.fs.s3a.s3guard;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Collection;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
@@ -34,7 +34,7 @@ import org.apache.hadoop.fs.Path;
  */
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
-public abstract class MetadataStore<T extends FileStatus> implements Closeable {
+public abstract class MetadataStore implements Closeable {
 
   /**
    * Performs one-time initialization of the metadata store.
@@ -71,17 +71,18 @@ public abstract class MetadataStore<T extends FileStatus> implements Closeable {
    * @return metadata for {@code path}, {@code null} if not found
    * @throws IOException if there is an error
    */
-  public abstract PathMetadata<T> get(Path path) throws IOException;
+  public abstract PathMetadata get(Path path) throws IOException;
 
   /**
    * Lists metadata for all direct children of a path.
    *
    * @param path the path to list
-   * @return metadata for all direct children of {@code path}, not {@code null},
-   *     but possibly empty
+   * @return metadata for all direct children of {@code path} which are
+   * being tracked by the MetadataStore, or null if the path was not
+   * found in the MetadataStore.
    * @throws IOException if there is an error
    */
-  public abstract DirListingMetadata<T> listChildren(Path path)
+  public abstract DirListingMetadata listChildren(Path path)
       throws IOException;
 
   /**
@@ -105,7 +106,7 @@ public abstract class MetadataStore<T extends FileStatus> implements Closeable {
    * @param meta the metadata to save
    * @throws IOException if there is an error
    */
-  public abstract void put(PathMetadata<T> meta) throws IOException;
+  public abstract void put(PathMetadata meta) throws IOException;
 
   /**
    * Save directory listing metadata. Callers may save a partial directory
@@ -113,7 +114,9 @@ public abstract class MetadataStore<T extends FileStatus> implements Closeable {
    * of the directory listing.  {@code MetadataStore} implementations may
    * subsequently keep track of all modifications to the directory contents at
    * this path, and return authoritative results from subsequent calls to
-   * {@link #listChildren(Path)}. See {@link DirListingMetadata()}.
+   * {@link #listChildren(Path)}. See
+   * {@link DirListingMetadata#DirListingMetadata(Path, Collection, boolean)}
+   * ()}.
    *
    * Any authoritative results returned are only authoritative for the scope
    * of the {@code MetadataStore}:  A per-process {@code MetadataStore}, for
@@ -122,7 +125,7 @@ public abstract class MetadataStore<T extends FileStatus> implements Closeable {
    * another process.
    *
    * @param meta Directory listing metadata.
-   * @throws IOException
+   * @throws IOException if there is an error updating the MetadataStore.
    */
-  public abstract void put(DirListingMetadata<T> meta) throws IOException;
+  public abstract void put(DirListingMetadata meta) throws IOException;
 }

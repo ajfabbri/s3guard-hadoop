@@ -20,7 +20,7 @@ package org.apache.hadoop.fs.s3a;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.transfer.Upload;
+import com.amazonaws.services.s3.model.PutObjectRequest;
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
@@ -103,19 +103,17 @@ public class S3AOutputStream extends OutputStream {
 
     try {
       final ObjectMetadata om = fs.newObjectMetadata();
-      Upload upload = fs.putObject(
-          fs.newPutObjectRequest(
-              key,
-              om,
-              backupFile));
+      PutObjectRequest req = fs.newPutObjectRequest(key, om, backupFile);
+      UploadInfo info = fs.putObject(req);
       ProgressableProgressListener listener =
-          new ProgressableProgressListener(fs, key, upload, progress);
-      upload.addProgressListener(listener);
+          new ProgressableProgressListener(fs, key, info.getUpload(), progress);
+      info.getUpload().addProgressListener(listener);
 
-      upload.waitForUploadResult();
+      info.getUpload().waitForUploadResult();
       listener.uploadCompleted();
-      // This will delete unnecessary fake parent directories
-      fs.finishedWrite(key);
+      // This will delete unnecessary fake parent directories, update any
+      // MetadataStore
+      fs.finishedWrite(key, info.getLength());
     } catch (InterruptedException e) {
       throw (InterruptedIOException) new InterruptedIOException(e.toString())
           .initCause(e);

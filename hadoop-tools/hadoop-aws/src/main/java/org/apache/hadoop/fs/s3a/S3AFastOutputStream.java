@@ -240,8 +240,9 @@ public class S3AFastOutputStream extends OutputStream {
     }
     closed = true;
     try {
+      long totalBytes;
       if (multiPartUpload == null) {
-        putObject();
+        totalBytes = putObject();
       } else {
         int size = buffer.size();
         if (size > 0) {
@@ -252,10 +253,10 @@ public class S3AFastOutputStream extends OutputStream {
         }
         final List<PartETag> partETags = multiPartUpload
             .waitForAllPartUploads();
-        multiPartUpload.complete(partETags);
+        totalBytes = multiPartUpload.complete(partETags);
       }
       // This will delete unnecessary fake parent directories
-      fs.finishedWrite(key);
+      fs.finishedWrite(key, totalBytes);
       LOG.debug("Upload complete for bucket '{}' key '{}'", bucket, key);
     } finally {
       buffer = null;
@@ -285,7 +286,12 @@ public class S3AFastOutputStream extends OutputStream {
     }
   }
 
-  private void putObject() throws IOException {
+  /**
+   * Do a regular upload.
+   * @return total length of upload
+   * @throws IOException on error
+   */
+  private long putObject() throws IOException {
     LOG.debug("Executing regular upload for bucket '{}' key '{}'",
         bucket, key);
     final ObjectMetadata om = createDefaultMetadata();
@@ -313,12 +319,14 @@ public class S3AFastOutputStream extends OutputStream {
     } catch (ExecutionException ee) {
       throw extractException("regular upload", key, ee);
     }
+    return size;
   }
 
 
   private class MultiPartUpload {
     private final String uploadId;
     private final List<ListenableFuture<PartETag>> partETagsFutures;
+    private long totalSize;
 
     public MultiPartUpload(String uploadId) {
       this.uploadId = uploadId;
@@ -345,6 +353,7 @@ public class S3AFastOutputStream extends OutputStream {
             }
           });
       partETagsFutures.add(partETagFuture);
+      totalSize += partSize;
     }
 
     private List<PartETag> waitForAllPartUploads() throws IOException {
@@ -367,7 +376,13 @@ public class S3AFastOutputStream extends OutputStream {
       }
     }
 
-    private void complete(List<PartETag> partETags) throws IOException {
+    /**
+     * Complete the multipart upload.
+     * @param partETags List of etags for each part
+     * @return total bytes for the uploaded file.
+     * @throws IOException if there was an error, and final file not written.
+     */
+    private long complete(List<PartETag> partETags) throws IOException {
       try {
         LOG.debug("Completing multi-part upload for key '{}', id '{}'",
             key, uploadId);
@@ -379,6 +394,7 @@ public class S3AFastOutputStream extends OutputStream {
       } catch (AmazonClientException e) {
         throw translateException("Completing multi-part upload", key, e);
       }
+      return totalSize;
     }
 
     public void abort() {

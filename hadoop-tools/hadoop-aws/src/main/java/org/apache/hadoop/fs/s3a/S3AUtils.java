@@ -221,14 +221,37 @@ public final class S3AUtils {
    * @return a status entry
    */
   public static S3AFileStatus createFileStatus(Path keyPath,
-      S3ObjectSummary summary,
-      long blockSize) {
-    if (objectRepresentsDirectory(summary.getKey(), summary.getSize())) {
+      S3ObjectSummary summary, long blockSize) {
+    long size = summary.getSize();
+    return createFileStatus(keyPath,
+        objectRepresentsDirectory(summary.getKey(), size),
+        size, summary.getLastModified(), blockSize);
+  }
+
+  /**
+   * Create a file status for object we just uploaded.  For files, we use
+   * current time as modification time, since s3a uses S3's service-based
+   * modification time, which will not be available until we do a
+   * getFileStatus() later on.
+   * @param keyPath path for created object
+   * @param isDir true iff directory
+   * @param size file length
+   * @param blockSize block size for file status
+   * @return a status entry
+   */
+  public static S3AFileStatus createUploadFileStatus(Path keyPath, boolean
+      isDir, long size, long blockSize) {
+    Date date = isDir ? null : new Date();
+    return createFileStatus(keyPath, isDir, size, new Date(), blockSize);
+  }
+
+  /* Date 'modified' is ignored when isDir is true. */
+  private static S3AFileStatus createFileStatus(Path keyPath, boolean isDir,
+      long size, Date modified, long blockSize) {
+    if (isDir) {
       return new S3AFileStatus(true, true, keyPath);
     } else {
-      return new S3AFileStatus(summary.getSize(),
-          dateToLong(summary.getLastModified()), keyPath,
-          blockSize);
+      return new S3AFileStatus(size, dateToLong(modified), keyPath, blockSize);
     }
   }
 

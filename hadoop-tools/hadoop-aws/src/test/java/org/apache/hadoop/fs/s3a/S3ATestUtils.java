@@ -208,6 +208,23 @@ public class S3ATestUtils {
   }
 
   /**
+   * Is there a MetadataStore configured for s3a with authoritative enabled?
+   * @param conf Configuration to test.
+   * @return true iff there is a MetadataStore configured, and it is
+   * configured allow authoritative results.  This can result in reducing
+   * round trips to S3 service for cached results, which may affect FS/FC
+   * statistics.
+   */
+  public static boolean isMetadataStoreAuthoritative(Configuration conf) {
+    if (conf == null) {
+      return Constants.DEFAULT_METADATASTORE_AUTHORITATIVE;
+    }
+    return conf.getBoolean(
+        Constants.METADATASTORE_AUTHORITATIVE,
+        Constants.DEFAULT_METADATASTORE_AUTHORITATIVE);
+  }
+
+  /**
    * Reset all metrics in a list.
    * @param metrics metrics to reset
    */

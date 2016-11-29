@@ -27,6 +27,8 @@ import java.net.URI;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.Protocol;
 import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.regions.Region;
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.S3ClientOptions;
@@ -37,14 +39,27 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.util.VersionInfo;
 
+import com.google.common.base.Preconditions;
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 
 /**
- * Factory for creation of S3 client instances to be used by {@link S3Store}.
+ * Factory for creation of S3 client and DynamoDB client instances.
  */
 @InterfaceAudience.Private
 @InterfaceStability.Unstable
-interface S3ClientFactory {
+public interface S3ClientFactory {
+
+  /**
+   * Create a new {@link AmazonDynamoDBClient} client.
+   *
+   * @param fsUri validated form of S3A file system URI DynamoDB client relates
+   * @param region the region of the client connects to
+   * @return a DynamoDB client in the provided region
+   * @throws IOException when IO problem met
+   */
+  AmazonDynamoDBClient createDynamoDBClient(URI fsUri, Region region)
+      throws IOException;
 
   /**
    * Creates a new {@link AmazonS3} client.  This method accepts the S3A file
@@ -62,21 +77,53 @@ interface S3ClientFactory {
    * The default factory implementation, which calls the AWS SDK to configure
    * and create an {@link AmazonS3Client} that communicates with the S3 service.
    */
-  static class DefaultS3ClientFactory extends Configured
-      implements S3ClientFactory {
+  class DefaultS3ClientFactory extends Configured implements S3ClientFactory {
 
     private static final Logger LOG = S3AFileSystem.LOG;
 
     @Override
     public AmazonS3 createS3Client(URI name, URI uri) throws IOException {
-      Configuration conf = getConf();
-      AWSCredentialsProvider credentials =
+      final Configuration conf = getConf();
+      final AWSCredentialsProvider credentials =
           createAWSCredentialProviderSet(name, conf, uri);
-      ClientConfiguration awsConf = new ClientConfiguration();
+      final ClientConfiguration awsConf = createAWSConf(conf);
+      return createAmazonS3Client(conf, credentials, awsConf);
+    }
+
+    @Override
+    public AmazonDynamoDBClient createDynamoDBClient(URI fsUri, Region region)
+        throws IOException {
+      final Configuration conf = getConf();
+      final AWSCredentialsProvider credentials =
+          createAWSCredentialProviderSet(fsUri, conf, fsUri);
+      final ClientConfiguration awsConf = createAWSConf(conf);
+      AmazonDynamoDBClient ddb = new AmazonDynamoDBClient(credentials, awsConf);
+
+      Preconditions.checkNotNull(region);
+      ddb.withRegion(region);
+      final String endPoint = conf.get(Constants.S3GUARD_DDB_ENDPOINT_KEY);
+      if (StringUtils.isNotEmpty(endPoint)) {
+        try {
+          ddb.withEndpoint(conf.get(Constants.S3GUARD_DDB_ENDPOINT_KEY));
+        } catch (IllegalArgumentException e) {
+          String msg = "Incorrect DynamoDB endpoint: "  + endPoint;
+          LOG.error(msg, e);
+          throw new IllegalArgumentException(msg, e);
+        }
+      }
+
+      return ddb;
+    }
+
+    /**
+     * Create an AWS client configuration object.
+     */
+    private static ClientConfiguration createAWSConf(Configuration conf) {
+      final ClientConfiguration awsConf = new ClientConfiguration();
       initConnectionSettings(conf, awsConf);
       initProxySupport(conf, awsConf);
       initUserAgent(conf, awsConf);
-      return createAmazonS3Client(conf, credentials, awsConf);
+      return awsConf;
     }
 
     /**

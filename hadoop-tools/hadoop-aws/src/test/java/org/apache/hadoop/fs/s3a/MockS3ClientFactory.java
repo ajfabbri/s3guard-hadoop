@@ -20,21 +20,38 @@ package org.apache.hadoop.fs.s3a;
 
 import static org.mockito.Mockito.*;
 
+import java.io.IOException;
 import java.net.URI;
 
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.Region;
+
+import org.apache.hadoop.conf.Configured;
 
 /**
  * An {@link S3ClientFactory} that returns Mockito mocks of the {@link AmazonS3}
  * interface suitable for unit testing.
+ *
+ * It delegates creation of DynamoDB client to {@link DefaultS3ClientFactory}
+ * factory which is default.
  */
-public class MockS3ClientFactory implements S3ClientFactory {
+public class MockS3ClientFactory extends Configured implements S3ClientFactory {
+
+  @Override
+  public AmazonDynamoDBClient createDynamoDBClient(
+      URI uri, com.amazonaws.regions.Region region) throws IOException {
+    final DefaultS3ClientFactory factory = new DefaultS3ClientFactory();
+    factory.setConf(getConf());
+    return factory.createDynamoDBClient(uri, region);
+  }
 
   @Override
   public AmazonS3 createS3Client(URI name, URI uri) {
     String bucket = name.getHost();
     AmazonS3 s3 = mock(AmazonS3.class);
     when(s3.doesBucketExist(bucket)).thenReturn(true);
+    when(s3.getRegion()).thenReturn(Region.US_Standard);
     return s3;
   }
 }

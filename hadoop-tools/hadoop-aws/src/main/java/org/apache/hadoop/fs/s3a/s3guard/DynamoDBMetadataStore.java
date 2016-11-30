@@ -170,13 +170,11 @@ class DynamoDBMetadataStore implements MetadataStore {
     final String bucket = s3afs.getUri().getAuthority();
     region = s3afs.getAmazonS3Client().getRegion().toAWSRegion();
 
-    final Configuration conf = s3afs.getConf();
-    Class<? extends S3ClientFactory> cls = conf.getClass(
-        Constants.S3_CLIENT_FACTORY_IMPL,
-        Constants.DEFAULT_S3_CLIENT_FACTORY_IMPL,
-        S3ClientFactory.class);
-    AmazonDynamoDBClient dynamoDBClient = ReflectionUtils.newInstance(cls, conf)
-        .createDynamoDBClient(s3afs.getUri(), region);
+    Configuration conf = s3afs.getConf();
+
+    DynamoDBClientFactory factory = new DynamoDBClientFactory(conf);
+    AmazonDynamoDBClient dynamoDBClient = factory.create(s3afs.getUri(),
+        region);
     dynamoDB = new DynamoDB(dynamoDBClient);
 
     // use the bucket as the DynamoDB table name if not specified in config
@@ -204,22 +202,29 @@ class DynamoDBMetadataStore implements MetadataStore {
     Preconditions.checkArgument(defautFs instanceof S3AFileSystem,
         "DynamoDBMetadataStore only supports S3A filesystem.");
     s3afs = (S3AFileSystem) defautFs;
+    region = getS3Region(conf, s3afs);
 
-    final Class<? extends S3ClientFactory> cls = conf.getClass(
-        Constants.S3_CLIENT_FACTORY_IMPL,
-        Constants.DEFAULT_S3_CLIENT_FACTORY_IMPL,
-        S3ClientFactory.class);
-    final S3ClientFactory factory = ReflectionUtils.newInstance(cls, conf);
-    AmazonS3 s3 = factory.createS3Client(s3afs.getUri(), s3afs.getUri());
-    region = s3.getRegion().toAWSRegion();
-    AmazonDynamoDB dynamoDBClient = factory
-        .createDynamoDBClient(S3AFileSystem.getDefaultUri(conf), region);
+    DynamoDBClientFactory ddbFactory = new DynamoDBClientFactory(conf);
+
+    AmazonDynamoDB dynamoDBClient = ddbFactory.create(
+        S3AFileSystem.getDefaultUri(conf), region);
     dynamoDB = new DynamoDB(dynamoDBClient);
 
     // use the bucket as the DynamoDB table name if not specified in config
     tableName = conf.getTrimmed(Constants.S3GUARD_DDB_TABLE_NAME_KEY);
     Preconditions.checkNotNull(tableName, "No DynamoDB table name configured!");
     createTable();
+  }
+
+  private static Region getS3Region(Configuration conf, S3AFileSystem s3afs)
+      throws IOException {
+    final Class<? extends S3ClientFactory> cls = conf.getClass(
+        Constants.S3_CLIENT_FACTORY_IMPL,
+        Constants.DEFAULT_S3_CLIENT_FACTORY_IMPL,
+        S3ClientFactory.class);
+    final S3ClientFactory factory = ReflectionUtils.newInstance(cls, conf);
+    AmazonS3 s3 = factory.createS3Client(s3afs.getUri(), s3afs.getUri());
+    return s3.getRegion().toAWSRegion();
   }
 
   @Override

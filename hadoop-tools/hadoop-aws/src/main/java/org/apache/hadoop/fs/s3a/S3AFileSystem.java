@@ -252,6 +252,7 @@ public class S3AFileSystem extends FileSystem {
       metadataStore = S3Guard.getMetadataStore(this);
       allowAuthoritative = conf.getBoolean(METADATASTORE_AUTHORITATIVE,
           DEFAULT_METADATASTORE_AUTHORITATIVE);
+      metadataStore.logStateDebug(LOG);
     } catch (AmazonClientException e) {
       throw translateException("initializing ", new Path(name), e);
     }
@@ -280,6 +281,12 @@ public class S3AFileSystem extends FileSystem {
     } catch (AmazonClientException e) {
       throw translateException("doesBucketExist", bucket, e);
     }
+  }
+
+  /** For testing, get the MetadataStore used by this fs. */
+  @VisibleForTesting
+  public MetadataStore getMetadataStore() {
+    return metadataStore;
   }
 
   /**
@@ -553,6 +560,7 @@ public class S3AFileSystem extends FileSystem {
       }
       if (!overwrite) {
         // path references a file and overwrite is disabled
+        LOG.info("{} fail to create: already exists");
         throw new FileAlreadyExistsException(f + " already exists");
       }
       LOG.debug("Overwriting file {}", f);

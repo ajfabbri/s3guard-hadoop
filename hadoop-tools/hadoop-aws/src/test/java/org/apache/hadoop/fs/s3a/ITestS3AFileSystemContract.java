@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.fs.s3a;
 
+import org.apache.hadoop.fs.s3a.s3guard.MetadataStore;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.rules.TestName;
@@ -26,6 +27,8 @@ import org.slf4j.LoggerFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystemContractBaseTest;
 import org.apache.hadoop.fs.Path;
+
+import java.io.IOException;
 
 /**
  *  Tests a live S3 system. If your keys and bucket aren't specified, all tests
@@ -55,9 +58,14 @@ public class ITestS3AFileSystemContract extends FileSystemContractBaseTest {
   public void setUp() throws Exception {
     Configuration conf = new Configuration();
 
-    fs = S3ATestUtils.createTestFileSystem(conf);
+    S3AFileSystem s3afs = S3ATestUtils.createTestFileSystem(conf);
+    fs = s3afs;
+
     basePath = fs.makeQualified(
         S3ATestUtils.createTestPath(new Path("/s3afilesystemcontract")));
+    MetadataStore ms = s3afs.getMetadataStore();
+    // XXX nuke metadatastore contents
+    ms.deleteSubtree(new Path(s3afs.getUri().toString(), "/"));
     super.setUp();
   }
 
@@ -116,5 +124,21 @@ public class ITestS3AFileSystemContract extends FileSystemContractBaseTest {
   public void testMoveDirUnderParent() throws Throwable {
     // not support because
     // Fails if dst is a directory that is not empty.
+  }
+
+  @Override
+  protected void writeAndRead(Path path, byte[] src, int len, boolean overwrite,
+      boolean delete) throws IOException {
+
+    LOG.debug("{} len {} overwrite {} delete {}", path, len, overwrite, delete);
+    super.writeAndRead(path, src, len, overwrite, delete);
+    LOG.debug("END {}", path);
+  }
+
+  @Override
+  public void testWriteReadAndDeleteOneBlock() throws Exception {
+    LOG.debug("ENTER");
+    super.testWriteReadAndDeleteOneBlock();
+    LOG.debug("EXIT");
   }
 }

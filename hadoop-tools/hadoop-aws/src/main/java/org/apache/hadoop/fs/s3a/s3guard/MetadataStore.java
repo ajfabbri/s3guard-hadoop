@@ -26,6 +26,7 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
 
 /**
  * {@code MetadataStore} defines the set of operations that any metadata store
@@ -156,4 +157,9 @@ public interface MetadataStore extends Closeable {
    * @throws IOException if there is an error
    */
   void destroy() throws IOException;
+
+  /** Optional: log full state to given log at debug level. */
+  default void logStateDebug(Logger log) throws IOException {
+    log.debug("not implemented");
+  }
 }

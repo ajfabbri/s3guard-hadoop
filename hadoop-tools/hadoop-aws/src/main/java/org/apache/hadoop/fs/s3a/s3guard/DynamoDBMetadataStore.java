@@ -21,6 +21,7 @@ package org.apache.hadoop.fs.s3a.s3guard;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -33,6 +34,7 @@ import com.amazonaws.services.dynamodbv2.document.DynamoDB;
 import com.amazonaws.services.dynamodbv2.document.Item;
 import com.amazonaws.services.dynamodbv2.document.ItemCollection;
 import com.amazonaws.services.dynamodbv2.document.QueryOutcome;
+import com.amazonaws.services.dynamodbv2.document.ScanOutcome;
 import com.amazonaws.services.dynamodbv2.document.Table;
 import com.amazonaws.services.dynamodbv2.document.TableWriteItems;
 import com.amazonaws.services.dynamodbv2.document.spec.GetItemSpec;
@@ -48,6 +50,7 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
+import org.apache.hadoop.fs.FileStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -247,10 +250,15 @@ class DynamoDBMetadataStore implements MetadataStore {
         tableName, region, path);
 
     final PathMetadata meta = get(path);
+    // XXX this is wrong:  it assumes all subtrees are completely stored in
+    // MetadataStore.  We need to delete all items that have 'path' as
+    // ancestor, even if we do not have state for 'path'.
     if (meta == null) {
       LOG.debug("Subtree path {} does not exist; this will be a no-op", path);
       return;
     }
+
+    // XXX We also need to update S3AFileStatus.isEmptyDirectory() for 'path'
 
     for (DescendantsIterator desc = new DescendantsIterator(this, meta);
          desc.hasNext();) {
@@ -315,6 +323,11 @@ class DynamoDBMetadataStore implements MetadataStore {
     final TableWriteItems writeItems = new TableWriteItems(tableName)
         .withItemsToPut(pathMetadataToItem(pathsToCreate))
         .withPrimaryKeysToDelete(pathToKey(pathsToDelete));
+
+    // XXX also need to update isEmtpyDirectory for S3AFileStatus of parent
+    // of src and destination.  (Src parent could become empty, dest could
+    // become non-empty)
+
     try {
       BatchWriteItemOutcome res = dynamoDB.batchWriteItem(writeItems);
 
@@ -333,6 +346,9 @@ class DynamoDBMetadataStore implements MetadataStore {
   public void put(PathMetadata meta) throws IOException {
     checkPathMetadata(meta);
     LOG.debug("Saving to table {} in region {}: {}", tableName, region, meta);
+
+    // XXX need to update parent's S3AFileStatus.isEmptyDirectory (it could
+    // become non-empty)
 
     final Path path = meta.getFileStatus().getPath();
     if (path.isRoot()) {
@@ -493,4 +509,20 @@ class DynamoDBMetadataStore implements MetadataStore {
     Preconditions.checkNotNull(meta.getFileStatus().getPath());
   }
 
+  @Override
+  public void logStateDebug(Logger log) throws IOException {
+    if (!log.isDebugEnabled()) {
+      return;
+    }
+    log.debug("### Logging all items in table ###");
+    ItemCollection<ScanOutcome> items = table.scan();
+    Iterator<Item> iter = items.iterator();
+    while (iter.hasNext()) {
+      Item item = iter.next();
+      PathMetadata meta = itemToPathMetadata(s3afs.getUri(), item);
+      FileStatus status = meta.getFileStatus();
+      log.debug("{} {}", status.isDirectory() ? "dir" : "   ",
+          status.getPath());
+    }
+  }
 }

@@ -23,6 +23,7 @@ import static org.mockito.Mockito.*;
 import java.net.URI;
 
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.Region;
 
 /**
  * An {@link S3ClientFactory} that returns Mockito mocks of the {@link AmazonS3}
@@ -34,6 +35,7 @@ public class MockS3ClientFactory implements S3ClientFactory {
   public AmazonS3 createS3Client(URI name, URI uri) {
     String bucket = name.getHost();
     AmazonS3 s3 = mock(AmazonS3.class);
+    when(s3.getRegion()).thenReturn(Region.US_Standard);
     when(s3.doesBucketExist(bucket)).thenReturn(true);
     return s3;
   }

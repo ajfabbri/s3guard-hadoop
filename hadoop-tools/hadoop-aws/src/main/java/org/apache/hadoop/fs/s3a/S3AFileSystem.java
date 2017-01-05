@@ -884,6 +884,17 @@ public class S3AFileSystem extends FileSystem {
     return !S3Guard.isNullMetadataStore(metadataStore);
   }
 
+  @VisibleForTesting
+  MetadataStore getMetadataStore() {
+    return metadataStore;
+  }
+
+  /** For testing only.  See ITestS3GuardEmptyDirs. */
+  @VisibleForTesting
+  void setMetadataStore(MetadataStore ms) {
+    metadataStore = ms;
+  }
+
   /**
    * Increment a statistic by 1.
    * @param statistic The operation to increment

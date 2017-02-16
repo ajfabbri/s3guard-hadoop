@@ -51,6 +51,12 @@ public class TestNullMetadataStore extends MetadataStoreTestBase {
     return true;
   }
 
+  /** This MetadataStore won't store anything, so there's nothing to prune. */
+  @Override
+  public boolean supportsPruning() {
+    return false;
+  }
+
   @Override
   public AbstractMSContract createContract() {
     return new NullMSContract();

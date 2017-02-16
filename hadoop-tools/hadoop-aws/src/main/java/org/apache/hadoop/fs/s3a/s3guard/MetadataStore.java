@@ -165,4 +165,15 @@ public interface MetadataStore extends Closeable {
    * @throws IOException if there is an error
    */
   void destroy() throws IOException;
+
+  /**
+   * Clear any metadata older than a specified time from the repository. Note
+   * that modification times should be in UTC, as returned by System
+   * .currentTimeMillis at the time of modification.
+   *
+   * @param modTime Oldest modification time to allow
+   * @throws IOException if there is an error
+   * @throws InterruptedException if the process is interrupted
+   */
+  void prune(long modTime) throws InterruptedException, IOException;
 }

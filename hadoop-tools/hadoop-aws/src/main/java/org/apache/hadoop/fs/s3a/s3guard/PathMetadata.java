@@ -32,6 +32,7 @@ import org.apache.hadoop.fs.FileStatus;
 public class PathMetadata {
 
   private final FileStatus fileStatus;
+  private Tristate isEmptyDirectory;
 
   /**
    * Creates a new {@code PathMetadata} containing given {@code FileStatus}.
@@ -51,6 +52,15 @@ public class PathMetadata {
    */
   public final FileStatus getFileStatus() {
     return fileStatus;
+  }
+
+  /**
+   * @return Tristate.TRUE if this is known to be an empty directory,
+   * Tristate.FALSE if known to not be empty, and Tristate.UNKNOWN if the
+   * MetadataStore does have enough information to determine either way.
+   */
+  public Tristate isEmptyDirectory() {
+    return isEmptyDirectory;
   }
 
   @Override

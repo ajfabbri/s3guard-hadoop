@@ -80,6 +80,13 @@ public class DirListingMetadata {
     this.isAuthoritative  = isAuthoritative;
   }
 
+  /** Copy constructor. */
+  public DirListingMetadata(DirListingMetadata d) {
+    path = d.path;
+    isAuthoritative = d.isAuthoritative;
+    listMap = new ConcurrentHashMap<>(d.listMap);
+  }
+
   /**
    * @return {@code Path} of the directory that contains this listing.
    */
